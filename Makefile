@@ -6,7 +6,7 @@ CXXFLAGS=-O3 -ffast-math
 
 LIBS = -lm -lOpenCL
 
-COMMON_DIR = ./common
+COMMON_DIR = ./CXX_common
 
 INC = -I $(COMMON_DIR)
 
