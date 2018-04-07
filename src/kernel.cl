@@ -39,7 +39,7 @@ __kernel void group(
 
         if (isAmerican == 1)
         {
-            St = S0 * pow(u, i) * pow(d, nbPoints - i);
+            St = S0 * pow(u, i) * pow(d, nbPoints - i - 1);
             pricesOut[i] = max(pricesOut[i], max(isCall * (St - K), 0.0f));
         }
 

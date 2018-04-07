@@ -15,13 +15,13 @@ using namespace std;
 struct Option
 {
     // Simulation parameters
-    int N               = 500;
+    int N               = 100;
     int nbPaths         = 32;
     int nbRuns          = 1;
 
     // Option parameters
     float S0            = 100.0;
-    float K             = 150.0;
+    float K             = 100.0;
     float T             = 3.0;
     float R             = 0.05;
     float sigma         = 0.2;
@@ -30,7 +30,7 @@ struct Option
     bool isCall         = false;
 
     // Bool do we price an American or an European option
-    bool isAmerican     = false;
+    bool isAmerican     = true;
 
     // Do we want debug info
     bool withDebugInfo  = false;

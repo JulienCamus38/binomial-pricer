@@ -11,6 +11,7 @@
 
 #include "Option.hpp"
 #include "Pricer.hpp"
+#include "err_code.h"
 
 // ----------------------------------------------------------------
 //  Functions from ./CXX_common
@@ -18,7 +19,7 @@
 extern double wtime();   /* returns time since some fixed past point
                             (wtime.c) */
 
-#define MAX_NBTIMESTEPS 16000
+#define MAX_NBTIMESTEPS 50000
 
 int main()
 {
@@ -81,7 +82,8 @@ int main()
     }
     catch (cl::Error e)
     {
-        cerr << "[ERROR] " << e.what() << "(" << e.err() << ")" << endl;
+        cerr << "[ERROR] " << e.what() << " (" << e.err() << ": "
+             << err_code(e.err()) << ")" << endl;
         return EXIT_FAILURE;
     }
 
