@@ -16,8 +16,6 @@ struct Option
 {
     // Simulation parameters
     int N               = 100;
-    int nbPaths         = 32;
-    int nbRuns          = 1;
 
     // Option parameters
     float S0            = 100.0;

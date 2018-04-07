@@ -103,7 +103,7 @@ double OpenCLPricer::computePrice(Option& option)
 
 double OpenCLPricer::computePriceUsingGroups(Option& option)
 {
-    int groupSize = 1;
+    int groupSize = 20;
 
     // Compute other parameters
     double dt = option.T / option.N;

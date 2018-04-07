@@ -41,8 +41,8 @@ int main()
 
         // Information
         cout << "============================================" << endl;
-        cout << "Option pricing" << endl;
-        cout << "============================================" << endl;
+        cout << "OPTION PRICING" << endl;
+        cout << "--------------------------------------------" << endl;
         if (dynamic_cast<OpenCLPricer*>(oclPricer)->getPricingMethod() == Method::GROUPS)
         {
             cout << "[INFO] Computing price using groups" << endl;
