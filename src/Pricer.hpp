@@ -24,6 +24,11 @@
 
 using namespace std;
 
+enum class Method {
+    GROUPS,
+    TRIANGLES
+};
+
 // Abstract class for option pricing
 class Pricer
 {
@@ -56,7 +61,12 @@ public:
     // Price computing
     virtual double computePrice(Option& option);
 
+    // Method used
+    Method getPricingMethod() { return method; }
+
 private:
+    Method method = Method::GROUPS;
+
     vector<cl::Platform>* platforms;
     cl::Platform* defaultPlatform;
     vector<cl::Device>* devices;

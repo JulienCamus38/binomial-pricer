@@ -5,6 +5,8 @@ add_library(pricer-lib
     Option.cpp
     SequentialPricer.cpp
     OpenCLPricer.cpp
+    kernel.cl
+    Pricer.hpp
     )
 
 install(TARGETS pricer-lib
@@ -13,9 +15,8 @@ install(TARGETS pricer-lib
 file(
     GLOB
     headers
-    *.hpp
-    CXX_common/
-    kernel.cl
+    Option.hpp
+    Pricer.hpp
     )
 
 install(FILES ${headers}

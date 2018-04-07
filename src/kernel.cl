@@ -5,19 +5,25 @@ __kernel void init(
     const float dt,
     const float u,
     const float d,
-    const int callPricing,
+    const int isCall,
     __global float* leaves)
 {
     size_t id = get_global_id(0);
     float ST = S0 * pow(u, id) * pow(d, N - id);
-    leaves[id] = max(callPricing * (ST - K), 0.0f);
+    leaves[id] = max(isCall * (ST - K), 0.0f);
 
     //printf("[init] leaves[%d] = %f\n", id, leaves[id]);
 }
 
 __kernel void group(
+    const float u,
+    const float d,
     const float r,
     const float p,
+    const float S0,
+    const float K,
+    const int isCall,
+    const int isAmerican,
     __global float* pricesIn,
     __global float* pricesOut,
     const int nbPoints,
@@ -25,10 +31,17 @@ __kernel void group(
 {
     int startId = get_global_id(0) * groupSize;
     int endId = min(startId + groupSize, nbPoints);
+    float St;
 
     for (int i = startId; i < endId; ++i)
     {
         pricesOut[i] = (1.0f / r) * (p * pricesIn[i + 1] + (1.0f - p) * pricesIn[i]);
+
+        if (isAmerican == 1)
+        {
+            St = S0 * pow(u, i) * pow(d, nbPoints - i);
+            pricesOut[i] = max(pricesOut[i], max(isCall * (St - K), 0.0f));
+        }
 
         //printf("[group] pricesOut[%d] = %f\n", i, pricesOut[i]);
     }

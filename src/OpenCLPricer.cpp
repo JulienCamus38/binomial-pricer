@@ -91,10 +91,82 @@ OpenCLPricer::~OpenCLPricer()
     delete program;
 }
 
+double OpenCLPricer::computePrice(Option& option)
+{
+    if (method == Method::GROUPS)
+    {
+        return computePriceUsingGroups(option);
+    }
+
+    return computePriceUsingTriangles(option);
+}
+
+double OpenCLPricer::computePriceUsingGroups(Option& option)
+{
+    int groupSize = 1;
+
+    // Compute other parameters
+    double dt = option.T / option.N;
+    double u = exp(option.sigma * sqrt(dt));
+    double d = 1.0 / u;
+    double r = exp(option.R * dt);
+    double p = (r - d) / (u - d);
+    int isCall = (option.isCall) ? 1 : -1; // used in kernel
+    int isAmerican = (option.isAmerican) ? 1 : 0; // used in kernel
+
+    // Initialize buffers
+    cl::Buffer groupA(*context, CL_MEM_READ_WRITE, sizeof(float) * (option.N + 1));
+    cl::Buffer groupB(*context, CL_MEM_READ_WRITE, sizeof(float) * (option.N + 1));
+
+    // Initialize queue
+    cl::CommandQueue queue(*context, *defaultDevice);
+
+    // Run init function
+    cl::Kernel initKernel(*program, "init");
+    initKernel.setArg(0, option.N);
+    initKernel.setArg(1, (float)option.S0);
+    initKernel.setArg(2, (float)option.K);
+    initKernel.setArg(3, (float)dt);
+    initKernel.setArg(4, (float)u);
+    initKernel.setArg(5, (float)d);
+    initKernel.setArg(6, isCall);
+    initKernel.setArg(7, groupA);
+    queue.enqueueNDRangeKernel(initKernel, cl::NullRange, cl::NDRange(option.N + 1));
+    queue.enqueueBarrierWithWaitList();
+
+    // Run group function
+    cl::Kernel groupKernel(*program, "group");
+    groupKernel.setArg(0, (float)u);
+    groupKernel.setArg(1, (float)d);
+    groupKernel.setArg(2, (float)r);
+    groupKernel.setArg(3, (float)p);
+    groupKernel.setArg(4, (float)option.S0);
+    groupKernel.setArg(5, (float)option.K);
+    groupKernel.setArg(6, isCall);
+    groupKernel.setArg(7, isAmerican);
+    int nbPoints, nbWorkItems;
+    for (int i = 1; i <= option.N; ++i)
+    {
+        nbPoints = option.N + 1 - i;
+        nbWorkItems = ceil((float)nbPoints / groupSize);
+        groupKernel.setArg(8, (i % 2 == 1) ? groupA : groupB);
+        groupKernel.setArg(9, (i % 2 == 1) ? groupB : groupA);
+        groupKernel.setArg(10, nbPoints);
+        groupKernel.setArg(11, groupSize);
+        queue.enqueueNDRangeKernel(groupKernel, cl::NullRange, cl::NDRange(nbWorkItems));
+        queue.enqueueBarrierWithWaitList();
+    }
+
+    // Results
+    float* price = new float;
+    queue.enqueueReadBuffer((option.N % 2 == 1) ? groupB : groupA, CL_TRUE, 0, sizeof(float), price);
+    return *price;
+}
+
 double OpenCLPricer::computePriceUsingTriangles(Option& option)
 {
     int maxNbWorkItems = defaultDevice->getInfo<CL_DEVICE_MAX_WORK_ITEM_SIZES>()[0];
-    int nbWorkItems = 128;
+    int nbWorkItems = 512;
     if (nbWorkItems > maxNbWorkItems)
     {
         cerr << "[ERROR] Number of work items not valid. Cannot have more than "
@@ -108,7 +180,8 @@ double OpenCLPricer::computePriceUsingTriangles(Option& option)
     double d = 1.0 / u;
     double r = exp(option.R * dt);
     double p = (r - d) / (u - d);
-    int callPricing = (option.callPricing) ? 1 : -1; // used in kernel
+    int isCall = (option.isCall) ? 1 : -1; // used in kernel
+    int isAmerican = (option.isAmerican) ? 1 : 0; // used in kernel
 
     // Initialize buffers
     cl::Buffer leaves(*context, CL_MEM_READ_WRITE, sizeof(float) * (option.N + 1));
@@ -125,7 +198,7 @@ double OpenCLPricer::computePriceUsingTriangles(Option& option)
     initKernel.setArg(3, (float)dt);
     initKernel.setArg(4, (float)u);
     initKernel.setArg(5, (float)d);
-    initKernel.setArg(6, callPricing);
+    initKernel.setArg(6, isCall);
     initKernel.setArg(7, leaves);
     queue.enqueueNDRangeKernel(initKernel, cl::NullRange, cl::NDRange(option.N + 1));
     queue.enqueueBarrierWithWaitList();
@@ -171,74 +244,4 @@ double OpenCLPricer::computePriceUsingTriangles(Option& option)
     double* price = new double;
     queue.enqueueReadBuffer(leaves, CL_TRUE, 0, sizeof(double), price);
     return *price;
-}
-
-double OpenCLPricer::computePriceUsingGroups(Option& option)
-{
-    int groupSize = 10;
-
-    // Compute other parameters
-    double dt = option.T / option.N;
-    double u = exp(option.sigma * sqrt(dt));
-    double d = 1.0 / u;
-    double r = exp(option.R * dt);
-    double p = (r - d) / (u - d);
-    int callPricing = (option.callPricing) ? 1 : -1; // used in kernel
-
-    // Initialize buffers
-    cl::Buffer groupA(*context, CL_MEM_READ_WRITE, sizeof(float) * (option.N + 1));
-    cl::Buffer groupB(*context, CL_MEM_READ_WRITE, sizeof(float) * (option.N + 1));
-
-    // Initialize queue
-    cl::CommandQueue queue(*context, *defaultDevice);
-
-    // Run init function
-    cl::Kernel initKernel(*program, "init");
-    initKernel.setArg(0, option.N);
-    initKernel.setArg(1, (float)option.S0);
-    initKernel.setArg(2, (float)option.K);
-    initKernel.setArg(3, (float)dt);
-    initKernel.setArg(4, (float)u);
-    initKernel.setArg(5, (float)d);
-    initKernel.setArg(6, callPricing);
-    initKernel.setArg(7, groupA);
-    queue.enqueueNDRangeKernel(initKernel, cl::NullRange, cl::NDRange(option.N + 1));
-    queue.enqueueBarrierWithWaitList();
-
-    // Run group function
-    cl::Kernel groupKernel(*program, "group");
-    groupKernel.setArg(0, (float)r);
-    groupKernel.setArg(1, (float)p);
-    int nbPoints, nbWorkItems;
-    for (int i = 1; i <= option.N; ++i)
-    {
-        nbPoints = option.N + 1 - i;
-        nbWorkItems = ceil((float)nbPoints / groupSize);
-        groupKernel.setArg(2, (i % 2 == 1) ? groupA : groupB);
-        groupKernel.setArg(3, (i % 2 == 1) ? groupB : groupA);
-        groupKernel.setArg(4, nbPoints);
-        groupKernel.setArg(5, groupSize);
-        queue.enqueueNDRangeKernel(groupKernel, cl::NullRange, cl::NDRange(nbWorkItems));
-        queue.enqueueBarrierWithWaitList();
-    }
-
-    // Results
-    float* price = new float;
-    queue.enqueueReadBuffer((option.N % 2 == 1) ? groupB : groupA, CL_TRUE, 0, sizeof(float), price);
-    return *price;
-}
-
-
-double OpenCLPricer::computePrice(Option& option)
-{
-    bool usingTriangles = false;
-
-    if (usingTriangles)
-    {
-        cout << "[INFO] Computing price using triangles" << endl;
-        return computePriceUsingTriangles(option);
-    }
-
-    cout << "[INFO] Computing price using groups" << endl;
-    return computePriceUsingGroups(option);
 }

@@ -38,10 +38,20 @@ int main()
 
         double seqPrice, oclPrice;
 
-        // Computation
-        cout << "=====================================" << endl;
+        // Information
+        cout << "============================================" << endl;
         cout << "Option pricing" << endl;
-        cout << "=====================================" << endl;
+        cout << "============================================" << endl;
+        if (dynamic_cast<OpenCLPricer*>(oclPricer)->getPricingMethod() == Method::GROUPS)
+        {
+            cout << "[INFO] Computing price using groups" << endl;
+        }
+        else {
+            cout << "[INFO] Computing price using triangles" << endl;
+        }
+        cout << "============================================" << endl;
+
+        // Computation
         while (option.N <= MAX_NBTIMESTEPS)
         {
             // Reset the timer
@@ -67,7 +77,7 @@ int main()
             // Multiply the number of time steps
             option.N *= growthRate;
         }
-        cout << "=====================================" << endl;
+        cout << "============================================" << endl;
     }
     catch (cl::Error e)
     {

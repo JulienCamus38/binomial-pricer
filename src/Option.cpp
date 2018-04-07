@@ -13,9 +13,9 @@
 
 ostream& operator<<(ostream& output, const Option& option)
 {
-    output << "=====================================" << endl;
+    output << "============================================" << endl;
     output << "Option parameters" << endl;
-    output << "=====================================" << endl;
+    output << "============================================" << endl;
     output << "Number of time steps:\t" << option.N << endl;
     output << "Number of paths:\t" << option.nbPaths << endl;
     output << "Number of runs:\t\t" << option.nbRuns << endl;
@@ -24,8 +24,9 @@ ostream& operator<<(ostream& output, const Option& option)
     output << "Maturity:\t\t" << option.T << endl;
     output << "Risk free rate:\t\t" << option.R << endl;
     output << "Volatility:\t\t" << option.sigma << endl;
-    output << "Option type:\t\tAmerican " << (option.callPricing ? "Call" : "Put") << endl;
-    output << "=====================================" << endl;
+    output << "Option type:\t\t" << (option.isAmerican ? "American " : "European ");
+    output << (option.isCall ? "Call" : "Put") << endl;
+    output << "============================================" << endl;
 
     return output;
 }
