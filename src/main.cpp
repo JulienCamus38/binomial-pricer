@@ -13,13 +13,15 @@
 #include "Pricer.hpp"
 #include "err_code.h"
 
+#include <fstream>
+
 // ----------------------------------------------------------------
 //  Functions from ./CXX_common
 // ----------------------------------------------------------------
 extern double wtime();   /* returns time since some fixed past point
                             (wtime.c) */
 
-#define MAX_NBTIMESTEPS 50000
+#define MAX_NBTIMESTEPS 51200
 
 int main()
 {
@@ -39,6 +41,11 @@ int main()
         Pricer* oclPricer = new OpenCLPricer();
 
         double seqPrice, oclPrice;
+
+        // File used to plot values
+        ofstream plots;
+        plots.open("out.txt");
+        plots << "N,Sequential,OpenCL" << endl;
 
         // Information
         cout << "============================================" << endl;
@@ -60,6 +67,7 @@ int main()
             timer.reset();
 
             cout << "[INFO] Number of time steps:\t " << option.N << endl;
+            plots << option.N << ",";
 
             // Sequential pricing
             start = static_cast<double>(timer.getTimeMicroseconds());
@@ -67,6 +75,7 @@ int main()
             end = static_cast<double>(timer.getTimeMicroseconds());
             cout << "[Sequential] Price:\t\t " << seqPrice << endl;
             cout << "[Sequential] Duration:\t\t " << (end - start)/1000.0 << " ms" << endl;
+            plots << (end - start)/1000.0 << ",";
 
             // OpenCL pricing
             start = static_cast<double>(timer.getTimeMicroseconds());
@@ -75,6 +84,7 @@ int main()
             cout << "[OpenCL] Price:\t\t\t " << oclPrice << endl;
             cout << "[OpenCL] Duration:\t\t " << (end - start)/1000.0 << " ms" << endl;
             cout << "--------------------------------------------" << endl;
+            plots << (end - start)/1000.0 << endl;
 
             // Update number of time steps
             option.N *= multiplyRate;
