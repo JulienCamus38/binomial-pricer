@@ -32,7 +32,8 @@ int main()
         util::Timer timer;
         double start, end;
 
-        int growthRate = 2;
+        int multiplyRate = 2;
+        //int addRate = 4000;
 
         Pricer* seqPricer = new SequentialPricer();
         Pricer* oclPricer = new OpenCLPricer();
@@ -71,12 +72,13 @@ int main()
             start = static_cast<double>(timer.getTimeMicroseconds());
             oclPrice = oclPricer->computePrice(option);
             end = static_cast<double>(timer.getTimeMicroseconds());
-            cout << "[OpenCL] Price:\t\t " << oclPrice << endl;
+            cout << "[OpenCL] Price:\t\t\t " << oclPrice << endl;
             cout << "[OpenCL] Duration:\t\t " << (end - start)/1000.0 << " ms" << endl;
             cout << "--------------------------------------------" << endl;
 
-            // Multiply the number of time steps
-            option.N *= growthRate;
+            // Update number of time steps
+            option.N *= multiplyRate;
+            //option.N += addRate;
         }
         cout << "============================================" << endl;
     }

@@ -26,11 +26,11 @@ __kernel void group(
     const int isAmerican,
     __global float* pricesIn,
     __global float* pricesOut,
-    const int nbPoints,
-    const int groupSize)
+    const int totalNbStates,
+    const int L)
 {
-    int startId = get_global_id(0) * groupSize;
-    int endId = min(startId + groupSize, nbPoints);
+    int startId = get_global_id(0) * L;
+    int endId = min(startId + L, totalNbStates);
     float St;
 
     for (int i = startId; i < endId; ++i)
@@ -39,7 +39,7 @@ __kernel void group(
 
         if (isAmerican == 1)
         {
-            St = S0 * pow(u, i) * pow(d, nbPoints - i - 1);
+            St = S0 * pow(u, i) * pow(d, totalNbStates - i - 1);
             pricesOut[i] = max(pricesOut[i], max(isCall * (St - K), 0.0f));
         }
 
@@ -76,21 +76,22 @@ __kernel void upTriangle(
         {
             price = (1.0f / r) * (p * tmpLeaves[localId + 1] + (1.0f - p) * tmpLeaves[localId]);
             tmpLeaves[localId] = price;
+            //TODO: manage american option
         }
 
         if (localId == 0)
         {
-            // Store boundary node value into secondary global buffer
+            // Store boundary node price into triangle global buffer
             triangle[offset + i] = price;
 
-            // Only store first node of first group back into global buffer
-            // First nodes of rest of the groups handled by downTriangle
+            // Store first node of first workgroup in global buffer
+            // Other nodes are managed by downTriangle kernel
             if (groupId == 0)
             {
                 leaves[globalId] = price;
             }
         }
-        // Store boundary node value back into global buffer
+        // Store boundary node price in global buffer
         else if (localId == nbWorkItems - i)
         {
            leaves[globalId] = price;
@@ -130,16 +131,17 @@ __kernel void downTriangle(
         {
             price = (1.0f / r) * (p * upPrice + (1.0f - p) * downPrice);
             tmpLeaves[localId] = price;
+            //TODO: manage american option
         }
     }
 
-    // Store missing option prices back to original global buffer
+    // Store missing option prices in global buffer
     if (localId > 0 && localId < nbWorkItems)
     {
         leaves[globalId] = tmpLeaves[localId];
     }
 
-    // Store first node of each group back to original global buffer
+    // Store first node of each workgroup in global buffer
     if (localId == nbWorkItems)
     {
         leaves[globalId] = triangle[globalId + nbWorkItems];

@@ -103,7 +103,8 @@ double OpenCLPricer::computePrice(Option& option)
 
 double OpenCLPricer::computePriceUsingGroups(Option& option)
 {
-    int groupSize = 20;
+    // Maximum number of levels in a block
+    int L = 20;
 
     // Compute other parameters
     double dt = option.T / option.N;
@@ -121,8 +122,11 @@ double OpenCLPricer::computePriceUsingGroups(Option& option)
     // Initialize queue
     cl::CommandQueue queue(*context, *defaultDevice);
 
-    // Run init function
+    // ----------------------------- INIT -------------------------------------
+    // Initialize kernel
     cl::Kernel initKernel(*program, "init");
+
+    // Set arguments
     initKernel.setArg(0, option.N);
     initKernel.setArg(1, (float)option.S0);
     initKernel.setArg(2, (float)option.K);
@@ -131,11 +135,18 @@ double OpenCLPricer::computePriceUsingGroups(Option& option)
     initKernel.setArg(5, (float)d);
     initKernel.setArg(6, isCall);
     initKernel.setArg(7, groupA);
+
+    // Execute kernel
     queue.enqueueNDRangeKernel(initKernel, cl::NullRange, cl::NDRange(option.N + 1));
+
+    // Wait for execution to end
     queue.enqueueBarrierWithWaitList();
 
-    // Run group function
+    // ----------------------------- GROUP ------------------------------------
+    // Initialize kernel
     cl::Kernel groupKernel(*program, "group");
+
+    // Set arguments
     groupKernel.setArg(0, (float)u);
     groupKernel.setArg(1, (float)d);
     groupKernel.setArg(2, (float)r);
@@ -144,21 +155,26 @@ double OpenCLPricer::computePriceUsingGroups(Option& option)
     groupKernel.setArg(5, (float)option.K);
     groupKernel.setArg(6, isCall);
     groupKernel.setArg(7, isAmerican);
-    int nbPoints, nbWorkItems;
+    int totalNbStates, nbWorkItems;
     for (int i = 1; i <= option.N; ++i)
     {
-        nbPoints = option.N + 1 - i;
-        nbWorkItems = ceil((float)nbPoints / groupSize);
+        totalNbStates = option.N + 1 - i;
+        nbWorkItems = ceil((float)totalNbStates / L);
         groupKernel.setArg(8, (i % 2 == 1) ? groupA : groupB);
         groupKernel.setArg(9, (i % 2 == 1) ? groupB : groupA);
-        groupKernel.setArg(10, nbPoints);
-        groupKernel.setArg(11, groupSize);
+        groupKernel.setArg(10, totalNbStates);
+        groupKernel.setArg(11, L);
+
+        // Execute kernel
         queue.enqueueNDRangeKernel(groupKernel, cl::NullRange, cl::NDRange(nbWorkItems));
+
+        // Wait for execution to end
         queue.enqueueBarrierWithWaitList();
     }
 
     // Results
     float* price = new float;
+    // Read buffer value
     queue.enqueueReadBuffer((option.N % 2 == 1) ? groupB : groupA, CL_TRUE, 0, sizeof(float), price);
     return *price;
 }
